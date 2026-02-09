@@ -1,0 +1,30 @@
+{
+  "name": "allmysat",
+  "version": "1.0.0",
+  "description": "Synchronize satellite data from CelesTrak and SatNOGS to Supabase",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "start": "vercel start"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.4"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "satellite",
+    "tle",
+    "celestrak",
+    "satnogs",
+    "supabase",
+    "vercel"
+  ],
+  "author": "",
+  "license": "MIT"
+}
