@@ -25,14 +25,12 @@ export default async function handler(req, res) {
     if (!satellites || satellites.length === 0) return res.status(200).json({ success: true, message: 'No satellites to sync' });
 
     const satelliteIds = satellites.map(s => s.id);
-
     const { data: existingTLEs } = await supabase
       .from('tle')
       .select('satellite_id, tle_line1, tle_line2')
       .in('satellite_id', satelliteIds);
 
     const tleMap = new Map((existingTLEs || []).map(t => [t.satellite_id, t]));
-
     const pendingTLEUpserts = [];
 
     const fetchWithTimeout = async (url, timeoutMs = API_TIMEOUT) => {
@@ -67,7 +65,6 @@ export default async function handler(req, res) {
 
     const processSatellite = async (satellite) => {
       const { id: satelliteId, norad_id: noradId, name } = satellite;
-
       try {
         const tleResponse = await fetchWithRetry(
           `https://celestrak.com/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=tle`,
@@ -99,9 +96,9 @@ export default async function handler(req, res) {
             tle_line1: tleLine1,
             tle_line2: tleLine2,
             epoch: epoch,
-            source: 'celestrak',
-            updated_at: new Date().toISOString(),
+            source: 'celestrak'
           });
+
           return { name, success: true, updated: true };
         }
 
@@ -125,6 +122,7 @@ export default async function handler(req, res) {
     const updatedCount = results.filter(r => r.success && r.updated).length;
 
     return res.status(200).json({ success: true, updated: updatedCount, processed: results.length, duration: `${duration}ms` });
+
   } catch (error) {
     console.error('TLE sync error:', error.message);
     return res.status(500).json({ success: false, error: error.message });
