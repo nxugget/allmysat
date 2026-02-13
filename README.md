@@ -4,9 +4,9 @@ Backend synchronization service for the **AllMySat** iOS application.
 
 ## What is this?
 
-This project automatically fetches and updates satellite data for amateur radio operators:
-- 📡 **TLE orbital data** from CelesTrak (every 2 hours)
-- 📻 **Transmitter information** from SatNOGS DB
+This project automatically fetches and updates satellite data mainly for amateur radio operators:
+- 📡 **TLE orbital data** from CelesTrak (every 6h)
+- 📻 **Transmitter information** from SatNOGS DB (every 24h)
 - 💾 Stores everything in a Supabase PostgreSQL database
 
 ## Tech Stack
@@ -14,5 +14,5 @@ This project automatically fetches and updates satellite data for amateur radio 
 - **Runtime**: Vercel Serverless Functions
 - **Database**: Supabase (PostgreSQL)
 - **APIs**: CelesTrak, SatNOGS DB
-- **Scheduling**: Vercel Cron (automated every 2 hours)
+- **Scheduling**: Github Actions
 
