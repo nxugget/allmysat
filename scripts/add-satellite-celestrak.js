@@ -23,7 +23,6 @@ function parseTLEFile(tleText) {
       const line2 = lines[i + 2].trim();
       const noradId = parseInt(line1.substring(2, 7));
       
-      // Parse nom et alternate
       let name = rawName;
       let alternateName = null;
       
@@ -48,30 +47,21 @@ function parseTLEFile(tleText) {
   return satellites;
 }
 
-// Upsert satellite
-async function upsertSatellite(sat, mainCategory, subCategory) {
+// Upsert satellite (plus de main_category/subcategory)
+async function upsertSatellite(sat) {
   try {
-    const { data: existing } = await supabase
-      .from('satellites')
-      .select('id, norad_id, name')
-      .eq('norad_id', sat.noradId)
-      .single();
-
-    if (existing) {
-      return existing;
-    }
+    // Use upsert with onConflict to make this safe under concurrency
+    const payload = {
+      norad_id: sat.noradId,
+      name: sat.name,
+      alternate_names: sat.alternateName ? [sat.alternateName] : null,
+      status: 'Unknown'
+    };
 
     const { data, error } = await supabase
       .from('satellites')
-      .insert({
-        norad_id: sat.noradId,
-        name: sat.name,
-        alternate_names: sat.alternateName ? [sat.alternateName] : null,
-        main_category: mainCategory,
-        subcategory: subCategory,
-        status: 'Unknown'
-      })
-      .select()
+      .upsert(payload, { onConflict: 'norad_id' })
+      .select('id, norad_id, name')
       .single();
 
     if (error) throw error;
@@ -80,6 +70,36 @@ async function upsertSatellite(sat, mainCategory, subCategory) {
   } catch (error) {
     console.error(`❌ Error: ${sat.name}`, error.message);
     return null;
+  }
+}
+
+// Link satellite to category
+async function linkSatelliteToCategory(satelliteId, categoryId, subcategoryId) {
+  try {
+    const { data: existing } = await supabase
+      .from('satellite_categories')
+      .select('*')
+      .eq('satellite_id', satelliteId)
+      .eq('category_id', categoryId)
+      .eq('subcategory_id', subcategoryId)
+      .single();
+
+    if (existing) return 'exists';
+
+    const { error } = await supabase
+      .from('satellite_categories')
+      .insert({
+        satellite_id: satelliteId,
+        category_id: categoryId,
+        subcategory_id: subcategoryId
+      });
+
+    if (error) throw error;
+    return 'linked';
+
+  } catch (error) {
+    console.error(`❌ Link error:`, error.message);
+    return 'error';
   }
 }
 
@@ -105,25 +125,19 @@ async function upsertTLE(satelliteId, sat) {
         .update(tleData)
         .eq('satellite_id', satelliteId);
       
-      if (error) {
-        console.error(`❌ TLE UPDATE ERROR:`, error);
-        throw error;
-      }
+      if (error) throw error;
       return 'updated';
     } else {
       const { error } = await supabase
         .from('tle')
         .insert(tleData);
       
-      if (error) {
-        console.error(`❌ TLE INSERT ERROR:`, error);
-        throw error;
-      }
+      if (error) throw error;
       return 'inserted';
     }
 
   } catch (error) {
-    console.error(`❌ TLE error satellite_id=${satelliteId}:`, error);
+    console.error(`❌ TLE error:`, error);
     return 'error';
   }
 }
@@ -131,20 +145,20 @@ async function upsertTLE(satelliteId, sat) {
 // Main
 async function main() {
   const url = process.argv[2];
-  const mainCategory = process.argv[3];
-  const subCategory = process.argv[4] || null;
+  const categoryId = parseInt(process.argv[3]);
+  const subcategoryId = process.argv[4] ? parseInt(process.argv[4]) : null;
 
-  if (!url) {
-    console.error('❌ Usage: node import-tle.js <URL> <MAIN_CATEGORY> [SUB_CATEGORY]');
-    console.error('Example: node import-tle.js "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle" "Weather" "NOAA"');
+  if (!url || !categoryId) {
+    console.error('❌ Usage: node import-tle.js <URL> <CATEGORY_ID> [SUBCATEGORY_ID]');
+    console.error('Example: node import-tle.js "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle" 2 7');
+    console.error('\nCategory IDs: 1=Ham Radio, 2=Weather, 3=Earth Resources, 4=Communications, 5=GNSS, 6=Scientific');
     process.exit(1);
   }
 
   console.log(`\n🛰️  Importing from: ${url}`);
-  console.log(`📁 Category: ${mainCategory}${subCategory ? ` / ${subCategory}` : ''}\n`);
+  console.log(`📁 Category ID: ${categoryId}${subcategoryId ? ` / Subcategory ID: ${subcategoryId}` : ''}\n`);
 
   try {
-    // Fetch TLE
     const response = await fetch(url);
     if (!response.ok) {
       console.error(`❌ Failed to fetch: ${response.status}`);
@@ -157,32 +171,50 @@ async function main() {
     console.log(`📡 Found ${satellites.length} satellites\n`);
 
     let inserted = 0;
-    let updated = 0;
+    let linked = 0;
     let tleInserted = 0;
     let tleUpdated = 0;
     let errors = 0;
 
-    for (const sat of satellites) {
-      // Upsert satellite
-      const satellite = await upsertSatellite(sat, mainCategory, subCategory);
-      
-      if (satellite && satellite.id) {
-        console.log(`✅ ${sat.name} [${sat.noradId}]`);
-        inserted++;
+    // Process with controlled concurrency
+    const concurrency = parseInt(process.env.CONCURRENCY || '10', 10);
+    const queue = [...satellites];
 
-        // Upsert TLE
-        const tleResult = await upsertTLE(satellite.id, sat);
-        
-        if (tleResult === 'inserted') tleInserted++;
-        if (tleResult === 'updated') tleUpdated++;
-        if (tleResult === 'error') errors++;
-      } else {
-        errors++;
+    async function worker() {
+      while (queue.length) {
+        const sat = queue.shift();
+        if (!sat) break;
+
+        const satellite = await upsertSatellite(sat);
+
+        if (satellite && satellite.id) {
+          console.log(`✅ ${sat.name} [${sat.noradId}]`);
+          inserted++;
+
+          const linkResult = await linkSatelliteToCategory(satellite.id, categoryId, subcategoryId);
+          if (linkResult === 'linked') linked++;
+
+          const tleResult = await upsertTLE(satellite.id, sat);
+          if (tleResult === 'inserted') tleInserted++;
+          if (tleResult === 'updated') tleUpdated++;
+          if (tleResult === 'error') errors++;
+        } else {
+          errors++;
+        }
       }
     }
 
+    // Start workers
+    const workers = [];
+    for (let i = 0; i < Math.min(concurrency, satellites.length); i++) {
+      workers.push(worker());
+    }
+
+    await Promise.all(workers);
+
     console.log(`\n${'='.repeat(50)}`);
     console.log(`✅ Satellites: ${inserted} processed`);
+    console.log(`🔗 Categories linked: ${linked}`);
     console.log(`📍 TLE inserted: ${tleInserted}`);
     console.log(`📍 TLE updated: ${tleUpdated}`);
     console.log(`❌ Errors: ${errors}`);

@@ -1,1 +1,5 @@
-noaa,goes,weather,amateur radio,gnss
+amateur radio
+noaa,goes,weather
+gnss, gps, galileo, beidou,
+intelsat,satnogs,qianfan, starlink, eutelsat, kuiper, telesat, oneweb, ses, orbcomm,huliawang,,iridium,globalstar
+earth ressources, sarsat, disaster-monitoring,tdrss

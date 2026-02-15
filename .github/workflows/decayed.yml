@@ -1,23 +1,24 @@
-name: Sync Transmitters
+name: Update Decayed Satellites
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    # Tous les lundis à 3h du matin UTC
+    - cron: '0 3 * * 1'
   workflow_dispatch:
 
 jobs:
-  sync_transmitters:
+  update_decayed:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Call Vercel sync-transmitters endpoint
+      - name: Call Vercel decayed endpoint
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
-            https://allmysat.vercel.app/api/cron/sync-transmitters)
+            https://allmysat.vercel.app/api/cron/decayed)
 
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
@@ -26,8 +27,8 @@ jobs:
           echo "Response: $body"
 
           if [ "$http_code" -ne 200 ]; then
-            echo "Error: Transmitters sync failed with status $http_code"
+            echo "Error: Decayed update failed with status $http_code"
             exit 1
           fi
 
-          echo "✅ Transmitters sync completed successfully"
+          echo "✅ Decayed update completed successfully"

@@ -10,3 +10,11 @@ yarn-debug.log*
 yarn-error.log*
 dist/
 build/
+
+# next.js
+.next/
+out/
+*.tsbuildinfo
+
+# old landing directory (migrated to root)
+landing/

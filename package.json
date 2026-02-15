@@ -1,26 +1,45 @@
 {
   "name": "allmysat",
-  "version": "1.0.0",
-  "description": "Synchronize satellite data from CelesTrak and SatNOGS to Supabase",
-  "type": "module",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AllMySat — Satellite tracking landing page & backend sync services",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.95.3",
-    "dotenv": "^17.2.4"
+    "@react-three/drei": "9.115.0",
+    "@react-three/fiber": "8.17.10",
+    "@supabase/supabase-js": "2.47.12",
+    "@tabler/icons-react": "3.24.0",
+    "clsx": "2.1.1",
+    "framer-motion": "11.15.0",
+    "lucide-react": "0.408.0",
+    "motion": "^12.34.0",
+    "next": "14.2.21",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwind-merge": "2.6.0",
+    "three": "0.170.0",
+    "three-globe": "2.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/prop-types": "^15.7.15",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/stats.js": "^0.17.4",
+    "@types/three": "0.170.0",
+    "autoprefixer": "10.4.16",
+    "postcss": "8.4.32",
+    "sharp": "^0.34.5",
+    "tailwindcss": "3.4.1",
+    "typescript": "5.3.3"
   },
   "engines": {
     "node": "20.x"
   },
-  "keywords": [
-    "satellite",
-    "tle",
-    "celestrak",
-    "satnogs",
-    "supabase",
-    "vercel"
-  ],
-  "author": "",
   "license": "MIT"
 }

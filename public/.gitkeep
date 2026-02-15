@@ -1,0 +1,9 @@
+This directory contains static assets served by Next.js.
+
+Place your images here:
+- appstore.svg
+- celestrak.png
+- satnogs.png
+- nasa.png
+- us-space-force.png
+- carousel/ (screenshots)
